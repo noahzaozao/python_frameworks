@@ -1,0 +1,4 @@
+flask==1.1.1
+flask-sockets==0.2.1
+websocket==0.2.1
+websocket-client=0.56.0
