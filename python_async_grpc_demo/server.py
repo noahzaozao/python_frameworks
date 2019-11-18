@@ -1,21 +1,20 @@
+import asyncio
 import logging
-import time
-from concurrent import futures
 
-import grpc
+from grpclib.server import Server
+from grpclib.utils import graceful_exit
 
 import demo_pb2
-import demo_pb2_grpc
+from demo_grpc import DemoServiceBase
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
-class DemoService(demo_pb2_grpc.DemoServiceServicer):
+class DemoService(DemoServiceBase):
 
-    def __init__(self):
-        pass
+    async def ApiCreate(self, stream):
 
-    def ApiCreate(self, request, context):
+        request = await stream.recv_message()
 
         print("C_2_S ApiCreate: >>>>> ", request)
 
@@ -27,9 +26,11 @@ class DemoService(demo_pb2_grpc.DemoServiceServicer):
 
         print("S_2_C ApiCreate: <<<<< ", response)
 
-        return response
+        await stream.send_message(response)
 
-    def ApiList(self, request, context):
+    async def ApiList(self, stream):
+
+        request = await stream.recv_message()
 
         print("C_2_S ApiList: >>>>> ", request)
 
@@ -41,9 +42,11 @@ class DemoService(demo_pb2_grpc.DemoServiceServicer):
 
         print("S_2_C ApiList: <<<<< ", response)
 
-        return response
+        await stream.send_message(response)
 
-    def ApiUpdate(self, request, context):
+    async def ApiUpdate(self, stream):
+
+        request = await stream.recv_message()
 
         print("C_2_S ApiUpdate: >>>>> ", request)
 
@@ -55,9 +58,11 @@ class DemoService(demo_pb2_grpc.DemoServiceServicer):
 
         print("S_2_C ApiUpdate: <<<<< ", response)
 
-        return response
+        await stream.send_message(response)
 
-    def ApiDelete(self, request, context):
+    async def ApiDelete(self, stream):
+
+        request = await stream.recv_message()
 
         print("C_2_S ApiDelete: >>>>> ", request)
 
@@ -69,24 +74,17 @@ class DemoService(demo_pb2_grpc.DemoServiceServicer):
 
         print("S_2_C ApiDelete: <<<<< ", response)
 
-        return response
+        await stream.send_message(response)
 
 
-def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    demo_pb2_grpc.add_DemoServiceServicer_to_server(DemoService(), server)
-    server.add_insecure_port('[::]:50051')
-    server.start()
-
-    print("listen: 50051")
-
-    try:
-        while True:
-            time.sleep(_ONE_DAY_IN_SECONDS)
-    except KeyboardInterrupt:
-        server.stop(0)
+async def main(host='127.0.0.1', port=50051):
+    server = Server([DemoService()])
+    with graceful_exit([server]):
+        await server.start(host, port)
+        print(f'Serving on {host}:{port}')
+        await server.wait_closed()
 
 
 if __name__ == '__main__':
     logging.basicConfig()
-    serve()
+    asyncio.run(main())
